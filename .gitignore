@@ -1,2 +1,5 @@
 dataset/*
 fasttext/*
+wordpiece/*
+length-distplots/*
+*.pyc
