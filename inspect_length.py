@@ -24,7 +24,8 @@ class InspectLength:
         dataframe: pd.DataFrame, 
         column: str, 
         tokenizer, 
-        output_dir: str
+        output_dir: str,
+        max_length: int,
     ):
         token_lengths = []
 
@@ -34,7 +35,7 @@ class InspectLength:
             tokens = tokenizer(text)
 
             #add current token length to list
-            token_lengths.append(min(len(tokens), 1000))
+            token_lengths.append(min(len(tokens), max_length))
 
         #draw distplot of token length
         sns_plot = sns.displot(token_lengths, kind='kde')
@@ -98,7 +99,8 @@ class InspectLength:
                         dataframe=dataframe, 
                         column=self.classification_dataset_info[dataset_name][f"{column}_column"], 
                         tokenizer=self.tokenizer_types[tokenizer_type]["tokenizer"], 
-                        output_dir=os.path.join(distplot_dir, f"{tokenizer_type}_{column}.png")
+                        output_dir=os.path.join(distplot_dir, f"{tokenizer_type}_{column}.png"),
+                        max_length=1000
                     )
         
         print("Done!")
