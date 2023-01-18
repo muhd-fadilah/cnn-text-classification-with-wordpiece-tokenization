@@ -344,11 +344,11 @@ class Controller:
         return data
 
     def run(self):
-        # #set random seed
-        # self.__set_random_seed()
+        #set random seed
+        self.__set_random_seed()
 
-        # #run preprocessing on wordpiece and classification dataset
-        # self.__classification_dataset_preprocessing()
+        #run preprocessing on wordpiece and classification dataset
+        self.__classification_dataset_preprocessing()
 
         #run training and validation of models
         self.__train_models()
