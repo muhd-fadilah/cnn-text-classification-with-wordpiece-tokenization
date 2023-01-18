@@ -18,7 +18,7 @@ class Run:
         learning_rate: float,
         save_path: str,
         epochs: int = 10,
-        batch_size: int = 64
+        batch_size: int = 30
     ):
         #create dataset instances for training and validation
         train = TensorDataset(torch.tensor(data['x_train']), torch.tensor(data['y_train']))
