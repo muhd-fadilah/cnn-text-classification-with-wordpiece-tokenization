@@ -154,6 +154,10 @@ class PreprocessingHelper:
 
     def __get_text_cleaning_types(self):
         return {
+            "alphabet_only": {
+                "tokenizer_types": ["word_tokenize", "word_tokenize_fasttext", "self_trained_wordpiece_uncased", "pre_trained_wordpiece_uncased"],
+                "method": lambda text: self.text_cleaner.alphabet_only(text),
+            },
             "special": {
                 "tokenizer_types": ["word_tokenize", "word_tokenize_fasttext", "self_trained_wordpiece_cased", "pre_trained_wordpiece_cased"],
                 "method": lambda text: self.text_cleaner.special(text),
@@ -162,10 +166,6 @@ class PreprocessingHelper:
                 "tokenizer_types": ["word_tokenize", "word_tokenize_fasttext", "self_trained_wordpiece_uncased", "pre_trained_wordpiece_uncased"],
                 "method": lambda text: self.text_cleaner.special(text),
             }, 
-            "alphabet_only": {
-                "tokenizer_types": ["word_tokenize", "word_tokenize_fasttext", "self_trained_wordpiece_uncased", "pre_trained_wordpiece_uncased"],
-                "method": lambda text: self.text_cleaner.alphabet_only(text),
-            },
         }
 
     def get_tokenizer_types(self):
@@ -176,27 +176,24 @@ class PreprocessingHelper:
         self.bert_base_cased = BertTokenizer.from_pretrained("bert-base-cased")
 
         return  {
-            "word_tokenize": {
-                "tokenizer": word_tokenize,
+            "pre_trained_wordpiece_cased": {
+                "tokenizer": lambda text: self.bert_base_cased.encode(text, add_special_tokens=False),
             },
-            "word_tokenize_fasttext": {
-                "tokenizer": word_tokenize,
+            "pre_trained_wordpiece_uncased": {
+                "tokenizer": lambda text: self.bert_base_uncased.encode(text, add_special_tokens=False),
+            },
+            "self_trained_wordpiece_cased": {
+                "tokenizer": lambda text: self.self_trained_wordpiece_cased.encode(text, add_special_tokens=False),
             },
             "self_trained_wordpiece_uncased": {
                 "tokenizer": lambda text: self.self_trained_wordpiece_uncased.encode(text, add_special_tokens=False),
             },
-            
-            "self_trained_wordpiece_cased": {
-                "tokenizer": lambda text: self.self_trained_wordpiece_cased.encode(text, add_special_tokens=False),
+            "word_tokenize": {                
+                "tokenizer": word_tokenize,
             },
-            
-            "pre_trained_wordpiece_uncased": {
-                "tokenizer": lambda text: self.bert_base_uncased.encode(text, add_special_tokens=False),
-            },
-            
-            "pre_trained_wordpiece_cased": {
-                "tokenizer": lambda text: self.bert_base_cased.encode(text, add_special_tokens=False),
-            },
+            "word_tokenize_fasttext": {
+                "tokenizer": word_tokenize,
+            }, 
         }
 
 class DatasetHelper:
@@ -212,18 +209,18 @@ class DatasetHelper:
                 "text_column": "text",
                 "label_column": "emotions",
                 "title_max_length": {
-                    "word_tokenize": 0,
-                    "self_trained_wordpiece_uncased": 0,
-                    "self_trained_wordpiece_cased": 0,
-                    "pre_trained_wordpiece_uncased": 0,
                     "pre_trained_wordpiece_cased": 0,
+                    "pre_trained_wordpiece_uncased": 0,
+                    "self_trained_wordpiece_cased": 0,
+                    "self_trained_wordpiece_uncased": 0,
+                    "word_tokenize": 0,
                 },
                 "text_max_length": {
-                    "word_tokenize": 75,
-                    "self_trained_wordpiece_uncased": 75,
-                    "self_trained_wordpiece_cased": 75,
-                    "pre_trained_wordpiece_uncased": 75,
-                    "pre_trained_wordpiece_cased": 75,
+                    "pre_trained_wordpiece_cased": 200,
+                    "pre_trained_wordpiece_uncased": 200,
+                    "self_trained_wordpiece_cased": 200,
+                    "self_trained_wordpiece_uncased": 200,
+                    "word_tokenize": 200,
                 },
             },
 
@@ -234,18 +231,18 @@ class DatasetHelper:
                 "text_column": "review",
                 "label_column": "sentiment",
                 "title_max_length": {
-                    "word_tokenize": 0,
-                    "self_trained_wordpiece_uncased": 0,
-                    "self_trained_wordpiece_cased": 0,
-                    "pre_trained_wordpiece_uncased": 0,
                     "pre_trained_wordpiece_cased": 0,
+                    "pre_trained_wordpiece_uncased": 0,
+                    "self_trained_wordpiece_cased": 0,
+                    "self_trained_wordpiece_uncased": 0,
+                    "word_tokenize": 0,
                 },
                 "text_max_length": {
-                    "word_tokenize": 1100,
-                    "self_trained_wordpiece_uncased": 1100,
-                    "self_trained_wordpiece_cased": 1100,
-                    "pre_trained_wordpiece_uncased": 1100,
-                    "pre_trained_wordpiece_cased": 1100,
+                    "pre_trained_wordpiece_cased": 1000,
+                    "pre_trained_wordpiece_uncased": 1000,
+                    "self_trained_wordpiece_cased": 1000,
+                    "self_trained_wordpiece_uncased": 1000,
+                    "word_tokenize": 1000,
                 },
             },
 
@@ -256,18 +253,18 @@ class DatasetHelper:
                 "text_column": None,
                 "label_column": "CATEGORY",
                 "title_max_length": {
-                    "word_tokenize": 50,
-                    "self_trained_wordpiece_uncased": 50,
-                    "self_trained_wordpiece_cased": 50,
-                    "pre_trained_wordpiece_uncased": 50,
-                    "pre_trained_wordpiece_cased": 50,
+                    "pre_trained_wordpiece_cased": 1000,
+                    "pre_trained_wordpiece_uncased": 1000,
+                    "self_trained_wordpiece_cased": 1000,
+                    "self_trained_wordpiece_uncased": 1000,
+                    "word_tokenize": 1000, 
                 },
                 "text_max_length": {
-                    "word_tokenize": 0,
-                    "self_trained_wordpiece_uncased": 0,
-                    "self_trained_wordpiece_cased": 0,
-                    "pre_trained_wordpiece_uncased": 0,
                     "pre_trained_wordpiece_cased": 0,
+                    "pre_trained_wordpiece_uncased": 0,
+                    "self_trained_wordpiece_cased": 0,
+                    "self_trained_wordpiece_uncased": 0,
+                    "word_tokenize": 0,
                 },
             },
 
@@ -278,18 +275,18 @@ class DatasetHelper:
                 "text_column": None,
                 "label_column": "is_sarcastic",
                 "title_max_length": {
-                    "word_tokenize": 50,
-                    "self_trained_wordpiece_uncased": 50,
-                    "self_trained_wordpiece_cased": 50,
-                    "pre_trained_wordpiece_uncased": 50,
-                    "pre_trained_wordpiece_cased": 50,
+                    "pre_trained_wordpiece_cased": 225,
+                    "pre_trained_wordpiece_uncased": 225,
+                    "self_trained_wordpiece_cased": 225,
+                    "self_trained_wordpiece_uncased": 225,
+                    "word_tokenize": 225,
                 },
                 "text_max_length": {
-                    "word_tokenize": 0,
-                    "self_trained_wordpiece_uncased": 0,
-                    "self_trained_wordpiece_cased": 0,
-                    "pre_trained_wordpiece_uncased": 0,
                     "pre_trained_wordpiece_cased": 0,
+                    "pre_trained_wordpiece_uncased": 0,
+                    "self_trained_wordpiece_cased": 0,
+                    "self_trained_wordpiece_uncased": 0,
+                    "word_tokenize": 0,
                 },
             },
         }
