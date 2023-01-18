@@ -210,14 +210,8 @@ class Tokenization:
         return text
 
     def __word_to_index(self, text: list, vocabulary: dict):
-        result = list()
-        
-        #convert word to index based on vocabulary
-        for word in text:
-            if word in vocabulary.keys():
-                result.append(vocabulary[word])
-
-        return result
+        #convert word to index
+        return [vocabulary.get(word, vocabulary["[UNK]"]) for word in text]
 
     def __tokenize_dataframe(
         self,
@@ -283,14 +277,23 @@ class Tokenization:
         #create list of tokenized text
         list_of_tokenized_text = self.df[column].apply(tokenizer).tolist()
 
-        #create frequency distribution object
-        freq_dist = nltk.FreqDist()
-
         #dataset max length
         dataset_max_length = self.dataset_info["title_max_length"][tokenizer_type] + self.dataset_info["text_max_length"][tokenizer_type]
 
         #used max length
         max_length = min(dataset_max_length, current_max_length)
+
+        #create frequency distribution object
+        vocabulary = dict()
+        
+        #add padding index to vocabulary
+        vocabulary['[PAD]'] = self.padding_index
+
+        #add unknown index to vocabulary
+        vocabulary['[UNK]'] = self.padding_index + 1
+
+        #starting index after reserved indices
+        index = self.padding_index + 2
 
         #iterate over list of text
         for text in list_of_tokenized_text:
@@ -300,21 +303,11 @@ class Tokenization:
             
             #iterate over words
             for word in text:
-                #add word frequency
-                freq_dist[word] += 1
-
-        #only use words with frequency more than two
-        freq_dist = list(filter(lambda x: x[1] >= 2, freq_dist.items()))
-
-        vocabulary = dict()
-
-        #add padding index to vocabulary
-        vocabulary['[PAD]'] = self.padding_index
-
-        #build vocabulary
-        for index, word in enumerate(freq_dist):
-            vocabulary[word[0]] = index + 1
-        
+                if word not in vocabulary:
+                    #add word index if not exist in vocabulary
+                    vocabulary[word] = index
+                    index += 1
+                
         return vocabulary
 
     def run(self):
