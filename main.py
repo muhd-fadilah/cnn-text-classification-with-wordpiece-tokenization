@@ -47,7 +47,7 @@ class Controller:
         #parameter related to model training
         self.learning_rate = 0.01
         self.epochs = 10
-        self.batch_size = 64
+        self.batch_size = 30
 
     def __set_random_seed(self):
         #set random seed on various libraries
@@ -150,6 +150,9 @@ class Controller:
 
         #total experiments
         total_experiments = self.__get_total_experiments()
+
+        #summary output path
+        summary_result_path = os.path.join(os.getcwd(), "result_summary.csv")
 
         with tqdm(total=total_experiments, desc="Experiment progress") as pbar:
             #iterate over combination possibilities
@@ -289,11 +292,21 @@ class Controller:
                                 "weighted_avg_f1_score": report.loc["weighted avg", "f1-score"],
                             }
 
-                            #append current result to overall result
-                            result.append(current_result)
+                            #dataframe of current result
+                            summary_result_update = pd.DataFrame([current_result])
+                            
+                            #save dataframe to csv file
+                            summary_result_update.to_csv(
+                                summary_result_path, 
+                                header=not os.path.exists(summary_result_path), 
+                                index=False, 
+                                mode='a', 
+                                encoding="utf-8"
+                            )
 
-                            #remove current result
+                            #remove unused objects
                             del current_result
+                            del summary_result_update
 
                             #update progress bar
                             pbar.update(1)
