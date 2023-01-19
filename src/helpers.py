@@ -155,16 +155,16 @@ class PreprocessingHelper:
     def __get_text_cleaning_types(self):
         return {
             "alphabet_only": {
-                "tokenizer_types": ["word_tokenize", "word_tokenize_fasttext", "self_trained_wordpiece_uncased", "pre_trained_wordpiece_uncased"],
+                "tokenizer_types": ["pre_trained_wordpiece_uncased", "self_trained_wordpiece_uncased", "word_tokenize", "word_tokenize_fasttext"],
                 "method": lambda text: self.text_cleaner.alphabet_only(text),
             },
             "special": {
-                "tokenizer_types": ["word_tokenize", "word_tokenize_fasttext", "self_trained_wordpiece_cased", "pre_trained_wordpiece_cased"],
+                "tokenizer_types": ["pre_trained_wordpiece_cased", "self_trained_wordpiece_cased", "word_tokenize", "word_tokenize_fasttext"],
                 "method": lambda text: self.text_cleaner.special(text),
             },
             "special_lowercase": {
-                "tokenizer_types": ["word_tokenize", "word_tokenize_fasttext", "self_trained_wordpiece_uncased", "pre_trained_wordpiece_uncased"],
-                "method": lambda text: self.text_cleaner.special(text),
+                "tokenizer_types": ["pre_trained_wordpiece_uncased", "self_trained_wordpiece_uncased", "word_tokenize", "word_tokenize_fasttext"],
+                "method": lambda text: self.text_cleaner.special(text, lowercase=True),
             }, 
         }
 
@@ -216,11 +216,11 @@ class DatasetHelper:
                     "word_tokenize": 0,
                 },
                 "text_max_length": {
-                    "pre_trained_wordpiece_cased": 200,
-                    "pre_trained_wordpiece_uncased": 200,
-                    "self_trained_wordpiece_cased": 200,
-                    "self_trained_wordpiece_uncased": 200,
-                    "word_tokenize": 200,
+                    "pre_trained_wordpiece_cased": 225,
+                    "pre_trained_wordpiece_uncased": 225,
+                    "self_trained_wordpiece_cased": 225,
+                    "self_trained_wordpiece_uncased": 225,
+                    "word_tokenize": 225,
                 },
             },
 
@@ -238,11 +238,11 @@ class DatasetHelper:
                     "word_tokenize": 0,
                 },
                 "text_max_length": {
-                    "pre_trained_wordpiece_cased": 1000,
-                    "pre_trained_wordpiece_uncased": 1000,
-                    "self_trained_wordpiece_cased": 1000,
-                    "self_trained_wordpiece_uncased": 1000,
-                    "word_tokenize": 1000,
+                    "pre_trained_wordpiece_cased": 500,
+                    "pre_trained_wordpiece_uncased": 500,
+                    "self_trained_wordpiece_cased": 500,
+                    "self_trained_wordpiece_uncased": 500,
+                    "word_tokenize": 500,
                 },
             },
 
@@ -253,11 +253,11 @@ class DatasetHelper:
                 "text_column": None,
                 "label_column": "CATEGORY",
                 "title_max_length": {
-                    "pre_trained_wordpiece_cased": 1000,
-                    "pre_trained_wordpiece_uncased": 1000,
-                    "self_trained_wordpiece_cased": 1000,
-                    "self_trained_wordpiece_uncased": 1000,
-                    "word_tokenize": 1000, 
+                    "pre_trained_wordpiece_cased": 75,
+                    "pre_trained_wordpiece_uncased": 75,
+                    "self_trained_wordpiece_cased": 75,
+                    "self_trained_wordpiece_uncased": 75,
+                    "word_tokenize": 75, 
                 },
                 "text_max_length": {
                     "pre_trained_wordpiece_cased": 0,
@@ -275,11 +275,11 @@ class DatasetHelper:
                 "text_column": None,
                 "label_column": "is_sarcastic",
                 "title_max_length": {
-                    "pre_trained_wordpiece_cased": 225,
-                    "pre_trained_wordpiece_uncased": 225,
-                    "self_trained_wordpiece_cased": 225,
-                    "self_trained_wordpiece_uncased": 225,
-                    "word_tokenize": 225,
+                    "pre_trained_wordpiece_cased": 150,
+                    "pre_trained_wordpiece_uncased": 150,
+                    "self_trained_wordpiece_cased": 150,
+                    "self_trained_wordpiece_uncased": 150,
+                    "word_tokenize": 150,
                 },
                 "text_max_length": {
                     "pre_trained_wordpiece_cased": 0,
