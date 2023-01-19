@@ -3,3 +3,4 @@ fasttext/*
 wordpiece/*
 length-distplots/*
 **/__pycache__
+*.csv
