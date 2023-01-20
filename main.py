@@ -146,8 +146,6 @@ class Controller:
         #enable garbage collector
         gc.enable()
 
-        result = list()
-
         #total experiments
         total_experiments = self.__get_total_experiments()
 
@@ -326,12 +324,6 @@ class Controller:
                     
                 #collect garbage
                 gc.collect()
-
-        #convert result to dataframe
-        self.df = pd.DataFrame(result)
-
-        #save dataframe to csv file
-        self.df.to_csv(os.path.join(os.getcwd(), "result_summary.csv"), encoding="utf-8")
 
     def __load_preprocessed_dataset(self, dataset_name):
         data = dict()
