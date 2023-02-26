@@ -6,6 +6,8 @@ import numpy as np
 import pandas as pd
 import gc
 
+from sklearn.utils import compute_class_weight
+from torch.utils.data import TensorDataset, DataLoader
 from src.preprocessing import TextCleaning, Tokenization
 from src.helpers import PreprocessingHelper, DatasetHelper
 from tqdm import tqdm
@@ -36,18 +38,23 @@ class Controller:
         #random state
         self.random_state = 719
 
+        #dataset split size
+        self.split_size = 0.1
+
         #parameters related to model
         self.embedding_dim = 300
         self.padding_index = 0
-        self.filter_sizes = [3, 4, 5]
-        self.num_filters = [100, 100, 100]
-        self.dropout = 0.3
+        self.filter_sizes = [[3, 4, 5]]
+        self.num_filters = [[100, 100, 100]]
+        self.dropout = 0.5
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         
         #parameter related to model training
         self.learning_rate = 0.01
-        self.epochs = 10
-        self.batch_size = 30
+        self.epochs = 20
+        self.batch_size = 50
+        self.patience = 3
+        self.min_delta = 0.001
 
     def __set_random_seed(self):
         #set random seed on various libraries
@@ -88,6 +95,7 @@ class Controller:
                 padding_index=self.padding_index,
                 random_state=self.random_state,
                 dataset_info=current_dataset_info,
+                split_size=self.split_size
             )
 
             tokenization.run()
@@ -138,7 +146,9 @@ class Controller:
             for _ in self.classification_dataset_info[dataset_name]["used_columns"]:
                 for text_cleaning_type in self.text_cleaning_types.keys():
                     for _ in self.text_cleaning_types[text_cleaning_type]["tokenizer_types"]:
-                        total += 1
+                        for _ in self.filter_sizes:
+                            for _ in self.num_filters:
+                                total += 1
 
         return total
         
@@ -160,7 +170,6 @@ class Controller:
                 
                 #load preprocessed dataset
                 preprocessed_data = self.__load_preprocessed_dataset(dataset_name)
-
                 for text_cleaning_type in self.text_cleaning_types.keys():
                     for tokenizer_type in self.text_cleaning_types[text_cleaning_type]["tokenizer_types"]:
                         #build experiment case name
@@ -171,7 +180,7 @@ class Controller:
 
                         #splitted dataset for training, validation, and testing
                         split_types = preprocessed_data[experiment_case]
-                        
+
                         #iterate over used columns
                         for used_column in self.classification_dataset_info[dataset_name]["used_columns"]:
                             data = dict()
@@ -184,140 +193,174 @@ class Controller:
                             data["y_val"] = split_types["y_val"]
                             data["y_test"] = split_types["y_test"]
 
+                            #create dataset instances for training, validation, and testing
+                            train = TensorDataset(torch.tensor(data['x_train']), torch.tensor(data['y_train']))
+                            val = TensorDataset(torch.tensor(data['x_val']), torch.tensor(data['y_val']))
+                            test = TensorDataset(torch.tensor(data['x_test']), torch.tensor(data['y_test']))
+                            
+                            #create data loader for training, validation, and testing
+                            train_data_loader = DataLoader(train, batch_size=self.batch_size)
+                            val_data_loader = DataLoader(val, batch_size=self.batch_size)
+                            test_data_loader = DataLoader(test, batch_size=self.batch_size)
+
+                            #compute class weights
+                            weights = compute_class_weight(class_weight='balanced', classes=np.unique(data['y_train']), y=data['y_train'])
+                            class_weights = torch.FloatTensor(weights).cuda()
+
                             #remove split types
                             del split_types
 
                             #get vocabulary
-                            vocab = self.__get_vocab(dataset_name, experiment_case)                
+                            vocab = self.__get_vocab(dataset_name, experiment_case)
                             
-                            #create model
-                            model = TextClassifier(
-                                num_classes=len(labels), 
-                                embedding_dim=self.embedding_dim if not use_pre_trained_fasttext else None,
-                                padding_index=self.padding_index,
-                                pretrained_embedding=None if not use_pre_trained_fasttext else self.__get_pre_trained_fasttext_embedding(vocab),
-                                freeze_embedding=use_pre_trained_fasttext,
-                                vocab_size=len(vocab.keys()) if not use_pre_trained_fasttext else None,
-                                filter_sizes=self.filter_sizes,
-                                num_filters=self.num_filters,
-                                dropout=self.dropout
-                            )
+                            for filter_size in self.filter_sizes:
+                                for num_filter in self.num_filters:
+                                    #directory for current experiment case
+                                    experiment_case_dir = os.path.join(
+                                        os.getcwd(), 
+                                        "dataset", 
+                                        dataset_name, 
+                                        experiment_case, 
+                                        "result", 
+                                        f"fs_{'_'.join(str(size) for size in filter_size)}",
+                                        f"nf_{'_'.join(str(num) for num in num_filter)}"
+                                    )
 
-                            #move model to device
-                            model = model.to(self.device)
+                                    if not os.path.exists(experiment_case_dir):
+                                        os.makedirs(experiment_case_dir)
+                                               
+                                    #create model
+                                    model = TextClassifier(
+                                        num_classes=len(labels), 
+                                        embedding_dim=self.embedding_dim if not use_pre_trained_fasttext else None,
+                                        padding_index=self.padding_index,
+                                        pretrained_embedding=None if not use_pre_trained_fasttext else self.__get_pre_trained_fasttext_embedding(vocab),
+                                        freeze_embedding=use_pre_trained_fasttext,
+                                        vocab_size=len(vocab.keys()) if not use_pre_trained_fasttext else None,
+                                        filter_sizes=filter_size,
+                                        num_filters=num_filter,
+                                        dropout=self.dropout
+                                    )
 
-                            #directory for current experiment case
-                            experiment_case_dir = os.path.join(os.getcwd(), "dataset", dataset_name, experiment_case)
+                                    #move model to device
+                                    model = model.to(self.device)
+
+                                    #directory for best model output
+                                    model_dir = os.path.join(experiment_case_dir, f"best_{used_column}_{'fasttext_'if use_pre_trained_fasttext else ''}model.bin")
+
+                                    #train model to get best accuracy
+                                    best_val_accuracy = Run.train(
+                                        model=model,
+                                        device=self.device,
+                                        train_data_loader=train_data_loader,
+                                        val_data_loader=val_data_loader,
+                                        class_weights=class_weights,
+                                        learning_rate=self.learning_rate,
+                                        save_path=model_dir,
+                                        epochs=self.epochs,
+                                        patience=self.patience,
+                                        min_delta=self.min_delta
+                                    )
+
+                                    #remove training model
+                                    del model
+
+                                    #create test model
+                                    test_model = TextClassifier(
+                                        num_classes=len(labels), 
+                                        embedding_dim=self.embedding_dim if not use_pre_trained_fasttext else None,
+                                        padding_index=self.padding_index,
+                                        pretrained_embedding=None if not use_pre_trained_fasttext else self.__get_pre_trained_fasttext_embedding(vocab),
+                                        freeze_embedding=use_pre_trained_fasttext,
+                                        vocab_size=len(vocab.keys()) if not use_pre_trained_fasttext else None,
+                                        filter_sizes=filter_size,
+                                        num_filters=num_filter,
+                                        dropout=self.dropout
+                                    )
+
+                                    #remove vocab
+                                    del vocab
+
+                                    #move best model to device
+                                    test_model = test_model.to(self.device)
+
+                                    #load best model
+                                    test_model.load_state_dict(torch.load(model_dir))
+
+                                    #get real values and prediction out of best model
+                                    real_values, predictions = Run.get_predictions(
+                                        model=test_model,
+                                        test_data_loader=test_data_loader,
+                                        device=self.device
+                                    )
+
+                                    #remove test model
+                                    del test_model
+
+                                    #create classification report
+                                    report = Run.create_classification_report(
+                                        real_values=real_values, 
+                                        predictions=predictions, 
+                                        class_names=labels,
+                                    )  
+
+                                    #remove real values
+                                    del real_values
+
+                                    #remove predictions
+                                    del predictions        
+
+                                    #save dataframe to csv file
+                                    report.to_csv(os.path.join(experiment_case_dir, f"{used_column}_{'fasttext_' if use_pre_trained_fasttext else ''}classification_report.csv"), encoding="utf-8")
+
+                                    #current result dictionary
+                                    current_result = {
+                                        "dataset_name": dataset_name,
+                                        "text_cleaning_type": text_cleaning_type,
+                                        "tokenizer_type": tokenizer_type,
+                                        "filter_size": '_'.join(str(size) for size in filter_size),
+                                        "num_filter": '_'.join(str(num) for num in num_filter),
+                                        "used_column": used_column,
+                                        "val_accuracy": best_val_accuracy,
+                                        "test_accuracy": report.loc["accuracy", "f1-score"],
+                                        "macro_avg_precision": report.loc["macro avg", "precision"],
+                                        "macro_avg_recall": report.loc["macro avg", "recall"],
+                                        "macro_avg_f1_score": report.loc["macro avg", "f1-score"],
+                                    }
+
+                                    #dataframe of current result
+                                    summary_result_update = pd.DataFrame([current_result])
+                                    
+                                    #save dataframe to csv file
+                                    summary_result_update.to_csv(
+                                        summary_result_path, 
+                                        header=not os.path.exists(summary_result_path), 
+                                        index=False, 
+                                        mode='a', 
+                                        encoding="utf-8"
+                                    )
+
+                                    #remove unused objects
+                                    del current_result
+                                    del summary_result_update
+
+                                    #update progress bar
+                                    pbar.update(1)
+
+                                    #print best test accuracy of last training
+                                    pbar.set_postfix({"test_acc": report.loc["accuracy", "f1-score"]})
+
+                                    #remove report
+                                    del report
+
+                                    #collect garbage
+                                    gc.collect()
                             
-                            #directory for best model output
-                            model_dir = os.path.join(experiment_case_dir, f"best_{used_column}_{'fasttext_'if use_pre_trained_fasttext else ''}model.bin")
-
-                            #train model to get best accuracy
-                            best_val_accuracy = Run.train(
-                                model=model,
-                                device=self.device,
-                                data=data,
-                                learning_rate=self.learning_rate,
-                                save_path=model_dir,
-                                epochs=self.epochs,
-                                batch_size=self.batch_size
-                            )
-
-                            #remove training model
-                            del model
-
-                            #create test model
-                            test_model = TextClassifier(
-                                num_classes=len(labels), 
-                                embedding_dim=self.embedding_dim if not use_pre_trained_fasttext else None,
-                                padding_index=self.padding_index,
-                                pretrained_embedding=None if not use_pre_trained_fasttext else self.__get_pre_trained_fasttext_embedding(vocab),
-                                freeze_embedding=use_pre_trained_fasttext,
-                                vocab_size=len(vocab.keys()) if not use_pre_trained_fasttext else None,
-                                filter_sizes=self.filter_sizes,
-                                num_filters=self.num_filters,
-                                dropout=self.dropout
-                            )
-
-                            #remove vocab
-                            del vocab
-
-                            #move best model to device
-                            test_model = test_model.to(self.device)
-
-                            #load best model
-                            test_model.load_state_dict(torch.load(model_dir))
-
-                            #get real values and prediction out of best model
-                            real_values, predictions = Run.get_predictions(
-                                model=test_model,
-                                data=data,
-                                device=self.device 
-                            )
-                            
-                            #remove data
-                            del data
-
-                            #remove test model
-                            del test_model
-
-                            #create classification report
-                            report = Run.create_classification_report(
-                                real_values=real_values, 
-                                predictions=predictions, 
-                                class_names=labels,
-                            )  
-
-                            #remove real values
-                            del real_values
-
-                            #remove predictions
-                            del predictions        
-
-                            #save dataframe to csv file
-                            report.to_csv(os.path.join(experiment_case_dir, f"{used_column}_{'fasttext_' if use_pre_trained_fasttext else ''}classification_report.csv"), encoding="utf-8")
-
-                            #current result dictionary
-                            current_result = {
-                                "dataset_name": dataset_name,
-                                "tokenizer_type": f"{tokenizer_type}{'_fasttext' if use_pre_trained_fasttext else ''}",
-                                "text_cleaning_type": text_cleaning_type,
-                                "used_column": used_column,
-                                "val_accuracy": best_val_accuracy,
-                                "test_accuracy": report.loc["accuracy", "f1-score"],
-                                "weighted_avg_precision": report.loc["weighted avg", "precision"],
-                                "weighted_avg_recall": report.loc["weighted avg", "recall"],
-                                "weighted_avg_f1_score": report.loc["weighted avg", "f1-score"],
-                            }
-
-                            #dataframe of current result
-                            summary_result_update = pd.DataFrame([current_result])
-                            
-                            #save dataframe to csv file
-                            summary_result_update.to_csv(
-                                summary_result_path, 
-                                header=not os.path.exists(summary_result_path), 
-                                index=False, 
-                                mode='a', 
-                                encoding="utf-8"
-                            )
-
                             #remove unused objects
-                            del current_result
-                            del summary_result_update
-
-                            #update progress bar
-                            pbar.update(1)
-
-                            #print best test accuracy of last training
-                            pbar.set_postfix({"prev_test_acc": report.loc["accuracy", "f1-score"]})
-
-                            #remove report
-                            del report
-
-                            #collect garbage
-                            gc.collect()
-
+                            del data
+                            del train, val, test
+                            del train_data_loader, val_data_loader, test_data_loader
+                
                 #remove unused objects
                 del labels
                 del preprocessed_data
@@ -352,8 +395,8 @@ class Controller:
         #set random seed
         self.__set_random_seed()
 
-        #run preprocessing on wordpiece and classification dataset
-        self.__classification_dataset_preprocessing()
+        # #run preprocessing on wordpiece and classification dataset
+        # self.__classification_dataset_preprocessing()
 
         #run training and validation of models
         self.__train_models()
