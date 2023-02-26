@@ -169,6 +169,7 @@ class Tokenization:
         padding_index: int,
         random_state: int,
         dataset_info: dict,
+        split_size: float
     ):
         #text_cleaning types
         self.text_cleaning_types = text_cleaning_types
@@ -193,6 +194,9 @@ class Tokenization:
 
         #vocabulary dictionary
         self.vocabulary = dict()
+
+        #dataset split size
+        self.split_size = split_size
 
     def __add_padding(self, text: list, max_length: int):
         #return nan if text is empty
@@ -250,7 +254,7 @@ class Tokenization:
         return result
 
     def __split_dataset(self, result: pd.DataFrame, labels: list):
-        test_size = math.floor(len(result) * 0.15)
+        test_size = math.floor(len(result) * self.split_size)
         
         #split training and testing dataset
         x_train, x_val, y_train, y_val = train_test_split(result, labels, test_size=test_size, random_state=self.random_state)
