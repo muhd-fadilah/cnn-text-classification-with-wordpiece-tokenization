@@ -9,37 +9,69 @@ from torch.utils.data import TensorDataset, DataLoader
 from sklearn.utils import compute_class_weight
 from sklearn.metrics import classification_report
 
+class EarlyStopper:
+    def __init__(self, patience=1, min_delta=0):
+        #limit of counter
+        self.patience = patience
+        
+        #minimum delta value
+        self.min_delta = min_delta
+        
+        #counter
+        self.counter = 0
+
+        #minimum validation loss
+        self.min_val_loss = np.inf
+
+    def early_stop(self, val_loss):
+        #continue if validation loss is smaller than current minimum value
+        if val_loss < self.min_val_loss:
+            self.min_val_loss = val_loss
+            self.counter = 0
+
+        #add counter if validation loss is larger than current minimum value plus minimum delta
+        elif val_loss - self.min_val_loss >= self.min_delta:
+            self.counter += 1
+            
+            #return true if limit is reached
+            if self.counter >= self.patience:
+                return True
+
+        #return false if early stopping criteria is not fulfilled
+        return False
+
 class Run:
     @staticmethod
     def train(
         model: TextClassifier,
         device,
-        data: dict,
+        train_data_loader: DataLoader,
+        val_data_loader: DataLoader,
+        class_weights,
         learning_rate: float,
         save_path: str,
-        epochs: int = 10,
-        batch_size: int = 30
+        epochs: int = 100,
+        patience: int = 3,
+        min_delta: int = 0.001
     ):
-        #create dataset instances for training and validation
-        train = TensorDataset(torch.tensor(data['x_train']), torch.tensor(data['y_train']))
-        val = TensorDataset(torch.tensor(data['x_val']), torch.tensor(data['y_val']))
-
-        #create data loader for training and validation
-        train_data_loader = DataLoader(train, batch_size=batch_size)
-        val_data_loader = DataLoader(val, batch_size=batch_size)
+        #determine which layers to apply the L2 regularization
+        conv1d_layers = ['conv1d_lists']
+        constrained_params = list(filter(lambda kv: kv[0] in conv1d_layers, model.named_parameters()))
+        
+        #these parameters won't apply the L2 regularization
+        normal_params = list(filter(lambda kv: kv[0] not in conv1d_layers, model.named_parameters()))
 
         #define optimizer
-        optimizer = optim.Adadelta(model.parameters(), lr=learning_rate, rho=0.95)
+        optimizer = optim.Adadelta([{'params': [param[1] for param in normal_params]}, {'params': [param[1] for param in constrained_params], 'weight_decay': 3}], lr=learning_rate, rho=0.95)
         
-        #compute class weights
-        weights = compute_class_weight(class_weight='balanced', classes=np.unique(data['y_train']), y=data['y_train'])
-        class_weights = torch.FloatTensor(weights).cuda()
-
         #define loss function with class weights
         loss_fn = nn.CrossEntropyLoss(weight=class_weights).to(device)
 
         #best accuracy
         best_accuracy = 0
+
+        #define early stopper
+        early_stopper = EarlyStopper(patience=patience, min_delta=min_delta)
 
         for _ in range(epochs):
             #activate training flag on model
@@ -75,7 +107,7 @@ class Run:
                 correct_predictions += torch.sum(y_preds == y)
             
             #evaluate model state for current epoch
-            val_accuracy = Run.evaluation(model, val_data_loader, device)
+            val_accuracy, val_loss = Run.evaluation(model, val_data_loader, loss_fn, device)
 
             if(val_accuracy > best_accuracy):
                 #update best accuracy
@@ -84,15 +116,22 @@ class Run:
                 #save current model state
                 torch.save(model.state_dict(), save_path)
 
+            #return if early stopping criteria is already met
+            if(early_stopper.early_stop(val_loss)):
+                return best_accuracy
+
         return best_accuracy
 
     @staticmethod
-    def evaluation(model: TextClassifier, val_data_loader: DataLoader, device):
+    def evaluation(model: TextClassifier, val_data_loader: DataLoader, loss_fn: torch.optim, device):
         #set evaluation flag on model
         model = model.eval()
         
         #list of accuracy
         accuracies = list()
+
+        #list of loss
+        losses = list()
 
         with torch.no_grad():
             for x, y in val_data_loader:
@@ -103,6 +142,9 @@ class Run:
                 #output of model with given tokens
                 outputs = model(x)
 
+                loss = loss_fn(outputs, y)
+                losses.append(loss.item())
+
                 #get value of labels predicted by model
                 y_preds = torch.argmax(outputs, dim=1).flatten()
                 
@@ -112,17 +154,11 @@ class Run:
                 #append accuracy value
                 accuracies.append(accuracy)
 
-        #count average of accuracies
-        return np.mean(accuracies)
+        #count average of accuracies and losses
+        return np.mean(accuracies), np.mean(losses)
 
     @staticmethod
-    def get_predictions(model: TextClassifier, data, device, batch_size: int = 64):
-        #create test dataset instance
-        test = TensorDataset(torch.tensor(data['x_test']), torch.tensor(data['y_test']))
-        
-        #create test data loader
-        test_data_loader = DataLoader(test, batch_size=batch_size)
-        
+    def get_predictions(model: TextClassifier, test_data_loader: DataLoader, device, batch_size: int = 64):
         #set evaluation flag on model
         model = model.eval()
         
