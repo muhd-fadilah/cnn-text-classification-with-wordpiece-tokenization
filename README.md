@@ -7,7 +7,7 @@ This repository is a boilerplate of CNN model for single-label text classificati
 - [Special Lowercase] - The same as [Special] except all letters are lowercase.
 
 ### Tokenization Methods
-- [WordPiece] - WordPiece is a sub-word tokenization algorithm developed by Google. It is presented in "Japanese and Korean voice search" paper (Schuster and Nakajima, 2012). I use WordPiece tokenizer from BERT original implementation (Devlin et al., 2019) and developed our own tokenizer using News Landscape dataset (Horne et al., 2018).
+- [WordPiece] - WordPiece is a sub-word tokenization algorithm developed by Google. It is presented in "Japanese and Korean voice search" paper (Schuster and Nakajima, 2012). I use WordPiece tokenizer from BERT original implementation (Devlin et al., 2019) and developed my own tokenizer using News Landscape dataset (Horne et al., 2018).
 - [Simple Word Tokenization] - Tokenization method with space as separator between each element.
 
 ### Embeddings
