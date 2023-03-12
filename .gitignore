@@ -1,7 +1,6 @@
 dataset/*
 fasttext/*
 word-cloud/*
-wordpiece/*
 length-distplots/*
 **/__pycache__
 *.csv
