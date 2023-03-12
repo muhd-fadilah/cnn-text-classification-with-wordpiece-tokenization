@@ -1,5 +1,5 @@
 # CNN Text Classification with WordPiece Tokenization
-This repository is a boilerplate of CNN model for single-label text classification task, built using PyTorch. The boilerplate will preprocess raw dataset (supported format: csv, json, pkl) and feed them to CNN model. Combinations of different text cleaning and tokenization methods are applied to dataset. The list of aforementioned methods is as follow:
+This repository is a boilerplate of CNN model for single-label text classification task, built using PyTorch. The boilerplate will preprocess raw dataset (supported format: csv, json, pkl) and feed them to CNN model. Combinations of different text cleaning and tokenization methods are applied to dataset.
 
 ### Text cleaning methods
 - [Alphabet Only] - This method removes stop words, retains Latin alphabets and space.
