@@ -51,7 +51,7 @@ class Controller:
         
         #parameter related to model training
         self.learning_rate = 0.01
-        self.epochs = 20
+        self.epochs = 50
         self.batch_size = 50
         self.patience = 3
         self.min_delta = 0.001
@@ -395,8 +395,8 @@ class Controller:
         #set random seed
         self.__set_random_seed()
 
-        # #run preprocessing on wordpiece and classification dataset
-        # self.__classification_dataset_preprocessing()
+        #run preprocessing on classification dataset
+        self.__classification_dataset_preprocessing()
 
         #run training and validation of models
         self.__train_models()
